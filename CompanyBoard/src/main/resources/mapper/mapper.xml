@@ -1,0 +1,714 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.com.com.mapper.BoardMapper">
+
+    <resultMap type="BoardVO" id="BoardRM">
+		<result property="no" column="SEQ"/>
+		<result property="writer" column="MEM_NAME"/>
+		<result property="id" column="MEM_ID"/>
+		<result property="title" column="BOARD_SUBJECT"/>
+		<result property="content" column="BOARD_CONTENT"/>
+		<result property="writeDate" column="REG_DATE"/>
+		<result property="modifyDate" column="UPT_DATE"/>
+		<result property="count" column="VIEW_CNT"/>
+	    <result property="useYN" column="USEYN"/>
+	    <result property="dataCount" column="DATACOUNT"/> 
+	</resultMap>
+	
+	 <resultMap type="DownloadFileDTO" id="DownloadRM">
+		<result property="fileSeq" column="file_seq"/>
+		<result property="realName" column="real_name"/>
+		<result property="saveName" column="save_name"/>
+		<result property="regDate" column="reg_date"/>
+		<result property="savePath" column="save_path"/>
+		<result property="listSeq" column="list_seq"/> 
+	</resultMap>
+	
+	<select id="findByTitle" parameterType="string" resultType="BoardVO" resultMap="BoardRM">
+        select
+         seq,
+         mem_name,
+         mem_id,
+         board_subject,
+         board_content,
+         reg_date,
+         upt_date,
+         view_cnt,
+         useyn
+         from board_study
+         <choose>
+         <when test='findBy.equals("title")'>
+            where board_subject like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("writer")'>
+            where mem_name like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("content")'>
+            where board_content like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("tiNcon")'>
+            where board_content like('%' || #{content} || '%')
+             or board_subject like('%' || #{content} || '%')
+         </when>
+         </choose>
+         
+         
+         <choose>
+         <when test="startDate != null and endDate != null">
+           and reg_date between to_date(#{startDate}, 'YYYY-MM-DD') and to_date(#{endDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate != null and endDate == null">
+         and reg_date > to_date(#{startDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate == null and endDate != null">
+         <![CDATA[
+         and reg_date < to_date(#{endDate}, 'YYYY-MM-DD')
+         ]]>
+         </when>
+         </choose>
+         order by seq desc
+    </select>
+      <select id="findAll" resultType="BoardVO" resultMap="BoardRM">
+        select 
+        seq,
+         mem_name,
+         mem_id,
+         board_subject,
+         board_content,
+         reg_date,
+         upt_date,
+         view_cnt,
+         useyn
+         from
+           board_study
+         order by seq desc
+    </select>
+    
+  <select id="findWithAjax" parameterType="string" resultType="BoardVO" resultMap="BoardRM">
+        select
+         seq,
+         mem_name,
+         mem_id,
+         board_subject,
+         board_content,
+         reg_date,
+         upt_date,
+         view_cnt,
+         useyn,
+         dataCount
+         from
+          (select
+           seq,
+           mem_name,
+           mem_id,
+           board_subject,
+           board_content,
+           reg_date,
+           upt_date,
+         view_cnt,
+         useyn,
+         row_number() over(order by seq desc) rm,
+         count(seq) over() dataCount
+         from board_study
+         <choose>
+         <when test='findBy.equals("title")'>
+            where board_subject like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("writer")'>
+            where mem_name like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("content")'>
+            where board_content like('%' || #{content} || '%')
+         </when>
+         <when test='findBy.equals("tiNcon")'>
+            where board_content like('%' || #{content} || '%')
+             or board_subject like('%' || #{content} || '%')
+         </when>
+         </choose>         
+     
+         <choose>
+         <when test="startDate != null and endDate != null">
+           and reg_date between to_date(#{startDate}, 'YYYY-MM-DD') and to_date(#{endDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate != null and endDate == null">
+         and reg_date > to_date(#{startDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate == null and endDate != null">
+         <![CDATA[
+         and reg_date < to_date(#{endDate}, 'YYYY-MM-DD')
+         ]]>
+         </when>
+         </choose>
+         )
+          where rm between #{start} and #{end}
+         order by seq desc
+    </select>
+    
+      <insert id="insert" parameterType="BoardDTO">
+       <selectKey resultType="int" keyProperty="seq" order="AFTER">
+        SELECT max(seq) from board_study
+    </selectKey>
+        INSERT INTO board_study( SEQ, MEM_NAME, MEM_ID, BOARD_SUBJECT, BOARD_CONTENT, REG_DATE ) 
+        VALUES ( (SELECT NVL(MAX(seq) + 1, 0) FROM board_study),
+         #{writer}, #{id}, #{title}, #{content}, #{writeDate}) 
+    </insert>
+    
+      <insert id="insertFile" parameterType="hashmap">
+        INSERT INTO FILE_STUDY_TABLE (file_seq, real_name, save_name,reg_date, save_path, list_seq)
+        values ((SELECT NVL(MAX(file_seq) + 1, 0) FROM FILE_STUDY_TABLE),
+         #{realName}, 
+        #{savedName}, 
+        #{regDate},
+        #{savePath},
+        #{listSeq} )
+    </insert>
+    
+    <select id="findOne" resultType="map" >
+        select
+         seq as no,
+         mem_name as writer,
+         mem_id as id,
+         board_subject as title,
+         board_content as content,
+         reg_date as writeDate
+         from board_study where seq = #{no}
+    </select>
+    
+    <update id="modifyBoard" parameterType="hashMap">
+        update board_study
+         set
+        mem_name = #{writer},
+        mem_id = #{id},
+        board_subject = #{title},
+        board_content = #{content},
+        upt_date = #{modifyDate}
+         where
+        seq = #{no}
+</update> 
+
+   <delete id="delete"> 
+        DELETE FROM board_study WHERE seq IN 
+        <foreach item="one" index="index" collection="list" open="(" separator="," close=")">
+            #{one}
+        </foreach> 
+    </delete>  
+    
+    
+    <select id="findFile" resultType="DownloadFileDTO" resultMap="DownloadRM">
+    select 
+      file_seq
+      ,real_name
+      ,save_name
+      ,reg_date
+      ,save_path
+      ,list_seq
+      from file_study_table
+      where list_seq = #{listSeq}
+    </select>
+    
+    
+    
+    
+    
+    <!-- ////////////////////////// -->
+    <!-- ////////////////////////// -->
+    <!-- ////////////////////////// -->
+    <!-- ////////////////////////// -->
+    <!-- ////////////////////////// -->
+    <!-- ////////////////////////// -->
+    
+   
+    
+    
+    <resultMap type="com.com.com.project.dto.BoardDTO" id="projectBoard">
+		<result property="seq" column="SEQ"/>
+		<result property="id" column="ID"/>
+		<result property="name" column="NAME"/>
+		<result property="title" column="TITLE"/>
+		<result property="content" column="CONTENT"/>
+		<result property="regDate" column="REG_DATE"/>
+		<result property="approDate" column="APPRO_DATE"/>
+		<result property="approval" column="APPROVAL"/>
+	    <result property="state" column="STATE"/>
+	    <result property="representApproval" column="represent_Approval"/>
+	</resultMap>
+	
+	<resultMap type="EmployeeDTO" id="employee">
+		<result property="originalAuthority" column="ORIGINAL_AUTHORITY"/>
+		<result property="authorityTime" column="AUTHORITY_TIME"/>
+	</resultMap>
+	
+    <sql id="board">
+       a.seq
+      ,a.id
+      ,b.name
+      ,a.title
+      ,a.content
+      ,a.reg_date
+      ,a.appro_date
+      ,
+      ( SELECT name
+        FROM ho_board c, ho_emp d
+        WHERE c.approval = d.id
+          AND c.seq = a.seq) approval
+      , 
+      (SELECT name
+       FROM ho_board c, ho_emp d
+       WHERE c.REPRESENT_APPROVAL = d.id
+        AND c.seq = a.seq) REPRESENT_APPROVAL
+      ,DECODE(a.state, 
+         'READY', '결재대기',
+         'TEMP', '임시저장',
+         'PROCESS', '결재중',
+         'DONE', '결재완료',
+         'REJECT', '반려') state
+    </sql>
+    
+    <select id="findUser" resultType="EmployeeDTO" resultMap="employee">
+      SELECT
+        seq
+        ,id
+        ,password
+        ,authority
+        ,name
+        ,original_authority
+        ,authority_time
+        ,representation
+      FROM ho_emp
+      WHERE id = #{id}
+    </select>
+    
+     <select id="findUserBoardWithAuthority" resultType="com.com.com.project.dto.BoardDTO" resultMap="projectBoard">
+      SELECT DISTINCT
+       <include refid="board"></include>
+      FROM ho_board a, ho_emp b, ho_board_history c
+      WHERE 1=1
+       AND ( 
+           a.id = b.id 
+       AND a.seq = c.board_seq )
+       <if test="authorityTime != null">
+         AND   TO_TIMESTAMP(c.appro_date, 'YY/MM/DD HH24:MI:SS.FF')
+            >    TO_TIMESTAMP(#{authorityTime}, 'YY/MM/DD HH24:MI:SS.FF')
+         AND a.seq = c.board_seq
+       </if>
+       <choose>
+         <when test='authority lt 3'>
+          AND(
+            a.middle_approval = #{id}
+          OR c.approval = #{id}
+          OR a.id = #{id})
+         </when>
+         <when test ='authority.equals("3")'>
+
+         AND(
+           a.state = 'READY'  
+           OR (a.state = 'REJECT' 
+             AND a.middle_approval = #{id})
+           OR (a.state != 'TEMP' 
+             AND a.represent_approval = #{id} )
+           OR (a.approval = #{id} 
+             AND a.state != 'TEMP')
+           OR (a.middle_approval = #{id} 
+             AND a.state != 'TEMP')
+           OR (a.id = #{id} 
+             AND a.represent_approval = #{id}
+             AND a.state != 'TEMP' )
+           OR a.id = #{id} )
+          <if test='authority == 3 and originalAuthority ==3'>
+        ORDER BY a.seq DESC
+          </if>
+         </when>
+         
+         <when test ='authority.equals("4") '>
+         AND(a.state = 'PROCESS'
+           OR a.id = #{id}
+           OR (a.state = 'DONE')
+           OR (a.state = 'REJECT'
+             AND a.middle_approval is not null )
+            )
+        ORDER BY seq DESC
+         </when>
+       </choose>
+        <if test='authority.equals("4") and originalAuthority.equals("3")'>
+      UNiON
+        SELECT DISTINCT
+         z.seq
+         ,z.id
+         ,w.name
+         ,z.title
+         ,z.content
+         ,z.reg_date
+         ,z.appro_date
+         ,
+         ( SELECT name
+           FROM ho_board c, ho_emp d
+           WHERE c.approval = d.id
+             AND c.seq = z.seq) approval
+         , 
+         (SELECT name
+          FROM ho_board c, ho_emp d
+          WHERE c.represent_approval = d.id
+            AND c.seq = z.seq) REPRESENT_APPROVAL
+         ,DECODE(z.state, 
+            'READY', '결재대기',
+            'TEMP', '임시저장',
+            'PROCESS', '결재중',
+            'DONE', '결재완료',
+            'REJECT', '반려') state
+          FROM ho_board z, ho_emp w, ho_board_history x 
+          WHERE 1=1
+            AND z.id = w.id
+            AND z.seq = x.board_seq 
+            AND( z.state = 'READY'  
+               OR (z.state = 'REJECT' 
+                 AND z.middle_approval = #{id} )
+               OR (z.approval = #{id} 
+                 AND z.state != 'TEMP')
+               OR z.middle_approval = #{id} 
+               OR z.represent_approval = #{id} 
+               OR z.id = #{id}
+               OR z.represent_approval = #{id}
+            )
+         ORDER BY seq DESC
+         </if> 
+        <if test='authority != 4 and originalAuthority != 3'>
+                  ORDER BY a.seq DESC
+        </if>
+    </select>
+    
+    <select id="findOneBoard" resultType="com.com.com.project.dto.BoardDTO" resultMap="projectBoard">
+       SELECT
+        <include refid="board"></include>
+       FROM ho_board a, ho_emp b
+       WHERE a.id = b.id
+         AND a.seq =  #{seq}
+    </select>
+    
+     <select id="findBoardHistory"  resultType="com.com.com.project.dto.BoardDTO" resultMap="projectBoard">
+       SELECT
+         ROW_NUMBER() OVER(ORDER BY seq DESC) no
+         ,seq
+         ,appro_date
+         ,(SELECT name
+           FROM ho_board_history a, ho_emp b
+           WHERE a.approval = b.id
+             AND a.seq = c.seq) approval
+         ,DECODE(state, 'READY', '결재대기',
+            'TEMP', '임시저장',
+            'PROCESS', '결재중',
+            'DONE', '결재완료',
+            'REJECT', '반려') state
+       FROM ho_board_history c
+       WHERE board_seq = #{seq}
+    </select>
+    
+    <select id="normalSearch" parameterType="hashmap" resultType="com.com.com.project.dto.BoardDTO" resultMap="projectBoard">
+      SELECT
+      <include refid="board"></include>
+       ,a.represent_approval2
+      FROM 
+        (SELECT
+           c.seq
+           , c.id
+           , d.name
+           , c.content
+           , c.reg_date
+           , c.appro_date
+           , (SELECT name FROM ho_board w, ho_emp z WHERE w.approval = z.id AND w.seq = c.seq) approval 
+           , c.state
+           , c.title
+           , c.middle_approval
+           , c.represent_approval
+           , (SELECT name FROM ho_board w, ho_emp z WHERE  w.represent_approval = z.id AND w.seq = c.seq) represent_approval2
+         FROM ho_board c, ho_emp d
+         WHERE c.id = d.id
+        <if test=" state != null and state !='' ">
+         AND state = #{state}
+        </if>
+        ) a, ho_emp b
+      WHERE 1 = 1
+        AND a.id = b.id
+      <choose>
+        <when test='findBy == "name"'>
+         AND b.name LIKE('%' || #{content} || '%')
+        </when>
+        <when test='findBy == "title"'>
+         AND a.title LIKE('%' || #{content} || '%')
+          
+        </when>
+        <when test='findBy == "titleAndCon"'>
+         AND (a.content LIKE('%' || #{content} || '%')
+          OR a.content LIKE('%' || #{content} || '%')
+         )
+        </when>
+        <when test='findBy == "approval"'>
+         AND (a.middle_approval = #{id}
+           OR a.represent_approval = #{id} )
+        </when>
+      </choose>
+      <choose>
+        <when test='authority lt 3 and findBy == "name"'>
+           AND( a.id = #{id} 
+             OR a.middle_approval = #{id} )
+        </when>
+        <when test='findBy == "name" and authority == "3"'>
+          AND( a.approval = #{name}
+            AND a.state IN ('DONE', 'PROCESS', 'REJECT') 
+            OR (a.state = 'READY' )
+            OR a.id = #{id}
+            OR( a.middle_approval = #{name} 
+              AND a.state = 'DONE' )
+            OR( a.represent_approval = #{id}
+              AND a.state !='TEMP')
+             )
+        </when>
+        <when test='findBy == "name" and authority.equals("4")'>
+          AND( a.state IN ('DONE', 'PROCESS')
+           OR a.id = #{id} 
+           OR a.represent_approval = #{id}
+           OR (a.middle_approval = #{id}
+             AND a.state IN ('PROECSS', 'REJECT', 'DONE'))
+           )
+        </when>
+        
+         <when test='authority lt 3 and findBy == "title"'>
+              AND( a.id = #{id} 
+             OR a.middle_approval = #{id} )
+        </when>
+        <when test='findBy == "title" and authority == "3"'>
+          AND( a.approval = #{name}
+            AND a.state IN ('DONE', 'PROCESS', 'REJECT') 
+            OR (a.state = 'READY' )
+            OR a.id = #{id}
+            OR( a.middle_approval = #{name} 
+              AND a.state = 'DONE' )
+            OR( a.represent_approval = #{id}
+              AND a.state !='TEMP')
+             )
+        </when>
+        <when test='findBy == "title" and authority.equals("4")'>
+           AND( a.state IN ('DONE', 'PROCESS')
+           OR a.id = #{id} 
+           OR a.represent_approval = #{id}
+           OR (a.middle_approval = #{id}
+             AND a.state IN ('PROECSS', 'REJECT', 'DONE'))
+           )
+        </when>
+        
+        <when test='authority lt 3 and findBy == "approval"'>
+           AND( a.id = #{id}
+             OR a.represent_approval2 LIKE('%' || #{content} || '%')
+             )
+        </when>
+        <when test='findBy == "approval" and authority == "3"'>
+           AND( a.approval LIKE('%' || #{content} || '%')
+             AND a.approval = #{name}
+             AND a.state in ('DONE', 'PROCESS')
+           OR (a.state = 'READY'
+             AND a.approval LIKE('%' || #{content} || '%'))
+           OR (a.approval LIKE('%' || #{content} || '%')
+             AND a.id = #{id})
+           OR(a.middle_approval = #{name} 
+             AND a.state = 'DONE'
+             AND a.approval LIKE('%' || #{content} || '%') )
+           OR( a.represent_approval = #{id}
+             AND a.approval LIKE('%' || #{content} || '%'))
+             )
+        </when>
+        <when test='findBy == "approval" and authority.equals("4")'>
+           AND ( a.state in ('DONE', 'PROCESS', 'REJECT')
+             AND a.approval LIKE('%' || #{content} || '%') 
+           OR (a.state in ('DONE', 'PROCESS', 'REJECT')
+             AND a.approval LIKE('%' || #{content} || '%') 
+             AND a.id = #{id} )
+           OR(a.state in ('DONE', 'PROCESS', 'REJECT')
+             AND a.represent_approval = #{id}
+             AND a.represent_approval2 LIKE ('%' || #{content} || '%'))
+           OR a.state in ('DONE', 'PROCESS', 'REJECT')
+             AND a.middle_approval = #{id}
+             AND a.represent_approval2 LIKE ('%' || #{content} || '%'))
+        </when>
+        
+        <when test='authority lt 3 and findBy == "titleAndCon"'>
+           AND (a.title LIKE('%' || #{content} || '%')
+             AND a.id = #{id})
+           OR (a.content LIKE('%' || #{content} || '%')
+             AND a.id = #{id})
+           OR( a.represent_approval = #{id}
+             AND a.title LIKE('%' || #{content} || '%')
+             AND a.id = b.id)
+           OR( a.represent_approval = #{id}
+             AND a.content LIKE('%' || #{content} || '%')
+             AND a.id = b.id)
+        </when>
+        <when test='findBy == "titleAndCon" and authority == "3"'>
+          AND( a.approval = #{name}
+            AND a.state IN ('DONE', 'PROCESS', 'REJECT') 
+            OR (a.state = 'READY' )
+            OR a.id = #{id}
+            OR( a.middle_approval = #{name} 
+              AND a.state = 'DONE' )
+            OR( a.represent_approval = #{id}
+              AND a.state !='TEMP'))
+        </when>
+        <when test='findBy == "titleAndCon" and authority.equals("4")'>
+             AND( a.state IN ('DONE', 'PROCESS')
+           OR a.id = #{id} 
+           OR a.represent_approval = #{id}
+           OR (a.middle_approval = #{id}
+             AND a.state IN ('PROECSS', 'REJECT', 'DONE'))
+           )
+        </when>
+      </choose>
+        <choose>
+         <when test="startDate != '' and endDate != ''">
+           AND reg_date BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD') AND TO_DATE(#{endDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate != '' and endDate == ''">
+           AND reg_date > TO_DATE(#{startDate}, 'YYYY-MM-DD')
+         </when>
+         <when test ="startDate == '' and endDate != ''">
+          <![CDATA[
+           AND reg_date < TO_DATE(#{endDate}, 'YYYY-MM-DD')
+           ]]>
+         </when>
+         </choose>
+         ORDER BY a.seq DESC
+    </select>  
+    
+    <select id="findByState" resultType="com.com.com.project.dto.BoardDTO" resultMap="projectBoard">
+      SELECT 
+       <include refid="board"></include>
+      FROM ho_board a, ho_emp b
+      WHERE 1=1
+        AND a.id = b.id
+        AND state = #{state}
+        <choose>
+          <when test ='authority lt 3'>
+            AND( a.id = #{id}
+              OR a.represent_approval = #{id} )
+          </when>
+          <when test = 'authority == 3 and state != "READY"'>
+            AND( a.id = #{id}
+              OR approval = #{id}
+              OR a.represent_approval = #{id}C)
+             <if test = 'authority ==3 and state == "DONE"'>
+            AND (a.middle_approval = #{id}
+              OR a.represent_approval = #{id})
+             </if>
+          </when>
+          <when test="authority == 4 and (state == 'TEMP' or state == 'READY')">
+            AND a.id = #{id}
+          </when>
+        </choose>
+        ORDER BY a.seq DESC
+    </select>
+    
+    <select id="findSubordinate" resultType="EmployeeDTO">
+      select 
+       seq
+       ,name
+       ,id
+       ,authority
+       ,name
+       from ho_emp
+       where  <![CDATA[ authority >= #{authority}-2 and authority < #{authority} ]]>
+       and authority = original_authority
+    </select>
+    
+    <insert id="insertHistory" parameterType="hashmap">
+      insert into HO_BOARD_HISTORY(
+      seq, 
+      board_seq, 
+      appro_date, 
+      approval, 
+      state
+      )
+      values(
+      (SELECT NVL(MAX(seq) + 1, 1) FROM HO_BOARD_HISTORY)
+      , #{seq}
+      , #{approDate}
+      , #{approval}
+      , #{state}
+      <if test="boardSeq != null">
+      , #{boardSeq}
+      </if>
+      )
+    </insert>
+    
+    <insert id="insertBoard" parameterType="hashmap">
+      <selectKey resultType="int" keyProperty="map.seq" order="AFTER">
+         SELECT max(seq) from HO_BOARD
+      </selectKey>
+      insert into HO_BOARD(
+       seq
+       ,id
+       ,content
+       ,represent_approval
+       <if test="map.approDate != null">
+       ,appro_Date
+       ,approval
+       </if>
+       ,reg_date
+       ,state
+       ,title
+       <if test="map.state == 'PROCESS'">
+       ,middle_approval
+       </if>
+      )
+      values(
+      (SELECT NVL(MAX(seq) + 1, 1) FROM HO_BOARD)
+      , #{map.id}
+      , #{map.content}
+      , #{map.representation}
+       <if test="map.approDate != null">
+       ,#{map.approDate}
+       ,#{map.approval}
+       </if>
+      , #{map.regDate}
+      , #{map.state}
+      , #{map.title}
+      <if test="map.state == 'PROCESS'">
+      , #{map.id}
+      </if>
+      )
+    </insert>
+
+    <update id="updateBoard" parameterType="hashmap">
+      update HO_BOARD
+      set
+       title = #{title}
+       , content = #{content}
+       , appro_date = #{approDate}
+       , approval = #{approval}
+       , state = #{state}
+       <if test = "state == 'PROCESS'">
+       , middle_approval = #{approval}
+       </if>
+
+       <if test="representation != null and representation != ''">
+       , represent_approval = #{representation}
+       </if>
+       where seq = #{seq}
+    </update>
+    
+    <update id="submmitRepresentation" parameterType="hashmap">
+      update HO_EMP
+      set
+      AUTHORITY = #{authority}
+      , AUTHORITY_TIME = #{authorityTime}
+      , representation = #{representation}
+      where id = #{id}
+    </update>
+    
+    <update id="rollbackAuthority">
+     update ho_emp
+     set
+     AUTHORITY = ORIGINAL_AUTHORITY
+      ,authority_time = null
+      ,representation = null
+      where id = #{id}
+    </update>
+</mapper>
