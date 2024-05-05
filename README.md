@@ -4,7 +4,7 @@
 환경)
 ------
 언어 : Java   
-프레임워크 : Srping-Lagacy   
+프레임워크 : Srping-Lagacy Version - 3.1.1
 템플릿 : JSP   
 DB: Oracle   
 IDE: Eclipse   
